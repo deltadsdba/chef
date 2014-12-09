@@ -29,6 +29,7 @@ class Chef::Provider::Service::Windows < Chef::Provider::Service
   provides :windows_service, os: "windows"
 
   include Chef::Mixin::ShellOut
+  include Chef::ReservedNames::Win32::API::Error
 
   #Win32::Service.get_start_type
   AUTO_START = 'auto start'
@@ -45,8 +46,6 @@ class Chef::Provider::Service::Windows < Chef::Provider::Service
   STOP_PENDING  = 'stop pending'
 
   TIMEOUT  = 60
-
-  ERROR_SERVICE_LOGON = 1069
 
   def whyrun_supported?
     false
@@ -98,7 +97,7 @@ class Chef::Provider::Service::Windows < Chef::Provider::Service
             begin
               Win32::Service.start(@new_resource.service_name)
             rescue SystemCallError => ex
-              if ex.errno == ERROR_SERVICE_LOGON
+              if ex.errno == ERROR_SERVICE_LOGON_FAILED
                 Chef::Log.error ex.message
                 raise Chef::Exceptions::Service,
                 "Service #{@new_resource} did not start due to a logon failure (error #{ERROR_SERVICE_LOGON}): possibly the specified user '#{@new_resource.run_as}' does not have the 'log on as a service' privilege, or the password is incorrect."
@@ -255,31 +254,39 @@ EOS
     Chef::Util::PathHelper.canonical_path("#{Dir.tmpdir}/service_logon_policy-#{clean_username_for_path(username)}-#{$$}.inf", prefix=false)
   end
 
+  def grant_dbfile_name(username)
+    "#{ENV['TEMP']}\\secedit.sdb"
+  end
+
   def grant_service_logon(username)
     logfile = grant_logfile_name(username)
     policy_file = ::File.new(grant_policyfile_name(username), 'w')
     policy_text = make_policy_text(username)
+    dbfile = grant_dbfile_name(username)        # this is just an audit file.
 
     begin
       Chef::Log.debug "Policy file text:\n#{policy_text}"
       policy_file.puts(policy_text)
       policy_file.close   # need to flush the buffer.
 
-      # this is just an audit file, we'll delete with the others if everything succeeded.
-      dbfile = "#{ENV['TEMP']}\\secedit.sdb"
-
-      cmd = %Q{secedit.exe /configure /db #{dbfile} /cfg "#{policy_file.path}" /areas USER_RIGHTS SECURITYPOLICY SERVICES /log "#{logfile}"}
+      # it would be nice to do this with APIs instead, but the LSA_* APIs are
+      # particularly onerous and life is short.
+      cmd = %Q{secedit.exe /configure /db "#{dbfile}" /cfg "#{policy_file.path}" /areas USER_RIGHTS SECURITYPOLICY SERVICES /log "#{logfile}"}
       Chef::Log.debug "Granting logon-as-service privilege with: #{cmd}"
       runner = shell_out(cmd)
 
       if runner.exitstatus != 0
-        Chef::Log.fatal "Logon-as-service grant failed with output: #{output}"
-        raise Chef::Exceptions::Service, "Logon grant failed with policy file #{policy_file.path}. You can look at #{logfile} for details, or do `secedit /analyze #{dbfile}."
+        Chef::Log.fatal "Logon-as-service grant failed with output: #{runner.stdout}"
+        raise Chef::Exceptions::Service, <<-EOS
+Logon-as-service grant failed with policy file #{policy_file.path}.
+You can look at #{logfile} for details, or do `secedit /analyze #{dbfile}`.
+The failed command was `#{cmd}`.
+EOS
       end
 
       Chef::Log.info "Grant logon-as-service to user '#{username}' successful."
 
-      ::File.delete(dbfile)
+      ::File.delete(dbfile) rescue nil
       ::File.delete(policy_file)
       ::File.delete(logfile) rescue nil     # logfile is not always present at end.
     end

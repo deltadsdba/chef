@@ -409,11 +409,16 @@ describe Chef::Provider::Service::Windows, "load_current_resource" do
     let(:success_string) { "The task has completed successfully.\r\nSee logfile etc." }
     let(:failure_string) { "Look on my works, ye Mighty, and despair!" }
     let(:command) {
-      %Q{secedit.exe /configure /db "secedit.sdb" /cfg "#{@provider.grant_policyfile_name(username)}" /areas USER_RIGHTS SECURITYPOLICY SERVICES /log "#{@provider.grant_logfile_name(username)}"}
+      dbfile = @provider.grant_dbfile_name(username)
+      policyfile = @provider.grant_policyfile_name(username)
+      logfile = @provider.grant_logfile_name(username)
+
+      %Q{secedit.exe /configure /db "#{dbfile}" /cfg "#{policyfile}" /areas USER_RIGHTS SECURITYPOLICY SERVICES /log "#{logfile}"}
     }
+    let(:shellout_env) { {:environment=>{"LC_ALL"=>"en_US.UTF-8"}} }
 
     before {
-      expect(Mixlib::ShellOut).to receive(:new).with(command).and_call_original
+      expect_any_instance_of(described_class).to receive(:shell_out).with(command).and_call_original
       expect_any_instance_of(Mixlib::ShellOut).to receive(:run_command).and_return(nil)
     }
 
@@ -421,16 +426,18 @@ describe Chef::Provider::Service::Windows, "load_current_resource" do
       # only needed for the second test.
       ::File.delete(@provider.grant_policyfile_name(username)) rescue nil
       ::File.delete(@provider.grant_logfile_name(username)) rescue nil
+      ::File.delete(@provider.grant_dbfile_name(username)) rescue nil
     }
 
     it "calls Mixlib::Shellout with the correct command string" do
-      expect_any_instance_of(Mixlib::ShellOut).to receive(:stdout).and_return(success_string)
-      expect(@provider.grant_service_logon(username)).to be_true
+      expect_any_instance_of(Mixlib::ShellOut).to receive(:exitstatus).and_return(0)
+      expect(@provider.grant_service_logon(username)).to equal true
     end
 
     it "raises an exception when the grant command fails" do
+      expect_any_instance_of(Mixlib::ShellOut).to receive(:exitstatus).and_return(1)
       expect_any_instance_of(Mixlib::ShellOut).to receive(:stdout).and_return(failure_string)
-      expect {@provider.grant_service_logon(username)}.to raise_error(Chef::Exceptions::Service)
+      expect { @provider.grant_service_logon(username) }.to raise_error(Chef::Exceptions::Service)
     end
   end
 

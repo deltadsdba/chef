@@ -1,6 +1,6 @@
 #
-# Author:: Chris Doherty (cdoherty@chef.io>)
-# Copyright:: Copyright (c) 2014 Opscode, Inc.
+# Author:: Chris Doherty (<cdoherty@chef.io>)
+# Copyright:: Copyright (c) 2014 Chef Software, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -42,6 +42,7 @@ describe Chef::Resource::WindowsService, :windows_only, :system_windows_service_
     test_service.merge( {
       run_as: qualified_username,
       run_as_password: password,
+      service_name: "spec_service_#{$$}",
       service_display_name: "windows_service test service",
       service_description: "Test service for running the windows_service functional spec.",
       service_file_path: global_service_file_path,
@@ -60,14 +61,19 @@ describe Chef::Resource::WindowsService, :windows_only, :system_windows_service_
 
   before {
     user_resource.run_action(:create)
+
+    # the service executable has to be outside the current user's home
+    # directory in order for the logon user to execute it.
     FileUtils::copy_file(test_service[:service_file_path], global_service_file_path)
 
     # if you don't make the file executable by the service user, you'll get
     # the not-very-helpful "service did not respond fast enough" error.
-    file = Chef::Resource::File.new(global_service_file_path, run_context)
-    # this may break in a post-Windows 8.1 release, and have to be replaced
+
+    # #mode may break in a post-Windows 8.1 release, and have to be replaced
     # with the rights stuff in the file resource.
+    file = Chef::Resource::File.new(global_service_file_path, run_context)
     file.mode("0777")
+
     file.run_action(:create)
 
     manager.run(%w{--action install})
@@ -80,8 +86,12 @@ describe Chef::Resource::WindowsService, :windows_only, :system_windows_service_
   }
 
   describe "logon as a service" do
-    it "runs a service as another user" do
+    it "successfully runs a service as another user" do
       service_resource.run_action(:start)
+    end
+
+    it "raises an exception when it can't grant the logon privilege" do
+#      service_resource.run_action(:start)
     end
   end
 end

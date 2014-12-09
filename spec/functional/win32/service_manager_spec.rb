@@ -55,7 +55,7 @@ describe "Chef::Application::WindowsServiceManager", :windows_only, :system_wind
       [:run_as, :run_as_password].each do |key|
         service_def = test_service.dup
         service_def[key] = "narf"
-        lambda { Chef::Application::WindowsServiceManager.new(service_def) }.should raise_error(ArgumentError)
+        expect { Chef::Application::WindowsServiceManager.new(service_def) }.to raise_error(ArgumentError)
       end
     end
   end
@@ -144,7 +144,7 @@ describe "Chef::Application::WindowsServiceManager", :windows_only, :system_wind
 
         ["pause", "resume"].each do |action|
           it "#{action} => should raise error" do
-            expect {service_manager.run(["-a", action])}.to raise_error(::Win32::Service::Error)
+            expect { service_manager.run(["-a", action]) }.to raise_error(SystemCallError)
           end
         end
 
