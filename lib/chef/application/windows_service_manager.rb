@@ -90,11 +90,6 @@ class Chef
         @service_file_path = service_options[:service_file_path]
         @service_start_name = service_options[:run_as]
         @password = service_options[:run_as_password]
-
-        # i.e. if only one of them is set.
-        if [@service_start_name, @password].compact.size == 1
-          raise ArgumentError, "Service definition requires either both or neither of :run_as and :run_as_password"
-        end
       end
 
       def run(params = ARGV)

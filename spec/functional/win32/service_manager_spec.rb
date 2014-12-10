@@ -50,14 +50,6 @@ describe "Chef::Application::WindowsServiceManager", :windows_only, :system_wind
         expect { Chef::Application::WindowsServiceManager.new(service_def) }.to raise_error(ArgumentError)
       end
     end
-
-    it "throws an error when given a username without password or vice versa" do
-      [:run_as, :run_as_password].each do |key|
-        service_def = test_service.dup
-        service_def[key] = "narf"
-        expect { Chef::Application::WindowsServiceManager.new(service_def) }.to raise_error(ArgumentError)
-      end
-    end
   end
 
   context "with valid definition" do
