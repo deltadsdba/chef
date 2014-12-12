@@ -297,7 +297,7 @@ F
     end
 
     def identical_resource?(prior_resource)
-      skipped_ivars = [ :@source_line, :@cookbook_name, :@recipe_name, :@supports ]
+      skipped_ivars = [ :@source_line, :@cookbook_name, :@recipe_name ]
       checked_ivars = prior_resource.instance_variables - skipped_ivars
       checked_ivars.all? do |iv|
         self.instance_variable_get(iv) == prior_resource.instance_variable_get(iv)
