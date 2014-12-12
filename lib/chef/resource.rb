@@ -296,17 +296,29 @@ F
       end
     end
 
+    def identical_resource?(prior_resource)
+      skipped_ivars = [ :@source_line, :@cookbook_name, :@recipe_name, :@supports ]
+      checked_ivars = prior_resource.instance_variables - skipped_ivars
+      checked_ivars.all? do |iv|
+        self.instance_variable_get(iv) == prior_resource.instance_variable_get(iv)
+      end
+    end
+
     def load_prior_resource(resource_type, instance_name)
       begin
         key = ::Chef::ResourceCollection::ResourceSet.create_key(resource_type, instance_name)
         prior_resource = run_context.resource_collection.lookup(key)
         # if we get here, there is a prior resource (otherwise we'd have jumped
         # to the rescue clause).
-        Chef::Log.warn("Cloning resource attributes for #{key} from prior resource (CHEF-3694)")
-        Chef::Log.warn("Previous #{prior_resource}: #{prior_resource.source_line}") if prior_resource.source_line
-        Chef::Log.warn("Current  #{self}: #{self.source_line}") if self.source_line
+        unless identical_resource?(prior_resource)
+          Chef::Log.warn("Cloning resource attributes for #{key} from prior resource (CHEF-3694)")
+          Chef::Log.warn("Previous #{prior_resource}: #{prior_resource.source_line}") if prior_resource.source_line
+          Chef::Log.warn("Current  #{self}: #{self.source_line}") if self.source_line
+        else
+          Chef::Log.debug("Harmless resource cloning from #{prior_resource}: #{prior_resource.source_line} to #{self}: #{self.source_line}")
+        end
         prior_resource.instance_variables.each do |iv|
-          unless iv.to_sym == :@source_line || iv.to_sym == :@action || iv.to_sym == :@not_if || iv.to_sym == :@only_if
+          unless iv == :@source_line || iv == :@action || iv == :@not_if || iv == :@only_if
             self.instance_variable_set(iv, prior_resource.instance_variable_get(iv))
           end
         end
