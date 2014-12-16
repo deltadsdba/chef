@@ -40,7 +40,7 @@ describe Chef::Resource::WindowsService, :windows_only, :system_windows_service_
 
   let(:service_params) {
     test_service.merge( {
-      run_as: qualified_username,
+      run_as_user: qualified_username,
       run_as_password: password,
       service_name: "spec_service_#{$$}",
       service_display_name: "windows_service test service",
@@ -55,7 +55,7 @@ describe Chef::Resource::WindowsService, :windows_only, :system_windows_service_
 
   let(:service_resource) {
     r = Chef::Resource::WindowsService.new(service_params[:service_name], run_context)
-    [:run_as, :run_as_password].each { |prop| r.send(prop, service_params[prop]) }
+    [:run_as_user, :run_as_password].each { |prop| r.send(prop, service_params[prop]) }
     r
   }
 

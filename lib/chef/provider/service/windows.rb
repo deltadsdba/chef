@@ -71,7 +71,7 @@ class Chef::Provider::Service::Windows < Chef::Provider::Service
       # reconfiguration is idempotent, so just do it.
       new_config = {
         service_name: @new_resource.service_name,
-        service_start_name: @new_resource.run_as,
+        service_start_name: @new_resource.run_as_user,
         password: @new_resource.run_as_password,
       }.reject { |k,v| v.nil? || v.length == 0 }
 
@@ -100,7 +100,7 @@ class Chef::Provider::Service::Windows < Chef::Provider::Service
               if ex.errno == ERROR_SERVICE_LOGON_FAILED
                 Chef::Log.error ex.message
                 raise Chef::Exceptions::Service,
-                "Service #{@new_resource} did not start due to a logon failure (error #{ERROR_SERVICE_LOGON}): possibly the specified user '#{@new_resource.run_as}' does not have the 'log on as a service' privilege, or the password is incorrect."
+                "Service #{@new_resource} did not start due to a logon failure (error #{ERROR_SERVICE_LOGON}): possibly the specified user '#{@new_resource.run_as_user}' does not have the 'log on as a service' privilege, or the password is incorrect."
               else
                 raise ex
               end

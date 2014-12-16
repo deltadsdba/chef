@@ -88,7 +88,7 @@ class Chef
         @service_display_name = service_options[:service_display_name]
         @service_description = service_options[:service_description]
         @service_file_path = service_options[:service_file_path]
-        @service_start_name = service_options[:run_as]
+        @service_start_name = service_options[:run_as_user]
         @password = service_options[:run_as_password]
       end
 

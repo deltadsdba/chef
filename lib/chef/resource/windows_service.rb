@@ -37,7 +37,7 @@ class Chef
         @resource_name = :windows_service
         @allowed_actions.push(:configure_startup)
         @startup_type = :automatic
-        @run_as = ""
+        @run_as_user = ""
         @run_as_password = ""
       end
 
@@ -51,9 +51,9 @@ class Chef
         )
       end
 
-      def run_as(arg=nil)
+      def run_as_user(arg=nil)
         set_or_return(
-          :run_as,
+          :run_as_user,
           arg,
           :kind_of => [ String ]
         )
