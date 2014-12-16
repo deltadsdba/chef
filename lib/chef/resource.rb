@@ -297,11 +297,18 @@ F
     end
 
     def identical_resource?(prior_resource)
-      skipped_ivars = [ :@source_line, :@cookbook_name, :@recipe_name ]
+      skipped_ivars = [ :@source_line, :@cookbook_name, :@recipe_name, :@params, :@elapsed_time ]
       checked_ivars = prior_resource.instance_variables - skipped_ivars
-      checked_ivars.all? do |iv|
-        self.instance_variable_get(iv) == prior_resource.instance_variable_get(iv)
+      non_matching_ivars = checked_ivars.reject do |iv|
+        if iv == :@action && ( [self.instance_variable_get(iv)].flatten == [:nothing] || [prior_resource.instance_variable_get(iv)].flatten == [:nothing] )
+          # :nothing action on either side of the comparison always matches
+          true
+        else
+          self.instance_variable_get(iv) == prior_resource.instance_variable_get(iv)
+        end
       end
+      Chef::Log.debug("ivars which did not match with the prior resource: #{non_matching_ivars}")
+      non_matching_ivars.empty?
     end
 
     def load_prior_resource(resource_type, instance_name)
